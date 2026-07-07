@@ -43,4 +43,18 @@ public class ClickProfileTest {
         assertEquals(1, step.getDurationMs());
         assertEquals(0, step.getRandomRadius());
     }
+
+    @Test
+    public void speedMultiplierClampsToSupportedRange() {
+        ClickProfile profile = new ClickProfile("速度范围");
+
+        profile.setSpeedMultiplier(0.1);
+        assertEquals(0.5, profile.getSpeedMultiplier(), 0.0);
+
+        profile.setSpeedMultiplier(4.8);
+        assertEquals(4.0, profile.getSpeedMultiplier(), 0.0);
+
+        profile.setSpeedMultiplier(2.34);
+        assertEquals(2.3, profile.getSpeedMultiplier(), 0.0);
+    }
 }

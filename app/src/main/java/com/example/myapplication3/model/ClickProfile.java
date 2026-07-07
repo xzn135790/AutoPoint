@@ -13,24 +13,28 @@ public class ClickProfile {
     private String name;
     private int loopCount;
     private boolean infiniteLoop;
+    private double speedMultiplier;
     private final List<ClickStep> steps;
 
     public ClickProfile(String name) {
-        this(UUID.randomUUID().toString(), name, 1, false, new ArrayList<ClickStep>());
+        this(UUID.randomUUID().toString(), name, 1, false, 1.0, new ArrayList<ClickStep>());
     }
 
     public ClickProfile(String id, String name, int loopCount, boolean infiniteLoop, List<ClickStep> steps) {
+        this(id, name, loopCount, infiniteLoop, 1.0, steps);
+    }
+
+    public ClickProfile(String id, String name, int loopCount, boolean infiniteLoop, double speedMultiplier, List<ClickStep> steps) {
         this.id = id;
         this.name = name == null || name.trim().isEmpty() ? "默认方案" : name.trim();
         this.loopCount = Math.max(1, loopCount);
         this.infiniteLoop = infiniteLoop;
+        setSpeedMultiplier(speedMultiplier);
         this.steps = steps == null ? new ArrayList<ClickStep>() : steps;
     }
 
     public static ClickProfile defaultProfile() {
-        ClickProfile profile = new ClickProfile("默认方案");
-        profile.getSteps().add(ClickStep.click());
-        return profile;
+        return new ClickProfile("默认方案");
     }
 
     public static ClickProfile fromJson(JSONObject object) throws JSONException {
@@ -46,6 +50,7 @@ public class ClickProfile {
                 object.optString("name", "默认方案"),
                 object.optInt("loopCount", 1),
                 object.optBoolean("infiniteLoop", false),
+                object.optDouble("speedMultiplier", 1.0),
                 parsedSteps
         );
     }
@@ -56,6 +61,7 @@ public class ClickProfile {
         object.put("name", name);
         object.put("loopCount", loopCount);
         object.put("infiniteLoop", infiniteLoop);
+        object.put("speedMultiplier", speedMultiplier);
         JSONArray stepArray = new JSONArray();
         for (ClickStep step : steps) {
             stepArray.put(step.toJson());
@@ -79,7 +85,7 @@ public class ClickProfile {
                     step.getRandomRadius()
             ));
         }
-        return new ClickProfile(UUID.randomUUID().toString(), newName, loopCount, infiniteLoop, copiedSteps);
+        return new ClickProfile(UUID.randomUUID().toString(), newName, loopCount, infiniteLoop, speedMultiplier, copiedSteps);
     }
 
     public String getId() {
@@ -108,6 +114,20 @@ public class ClickProfile {
 
     public void setInfiniteLoop(boolean infiniteLoop) {
         this.infiniteLoop = infiniteLoop;
+    }
+
+    public double getSpeedMultiplier() {
+        return speedMultiplier;
+    }
+
+    public void setSpeedMultiplier(double speedMultiplier) {
+        if (speedMultiplier < 0.5) {
+            this.speedMultiplier = 0.5;
+        } else if (speedMultiplier > 4.0) {
+            this.speedMultiplier = 4.0;
+        } else {
+            this.speedMultiplier = Math.round(speedMultiplier * 10.0) / 10.0;
+        }
     }
 
     public List<ClickStep> getSteps() {

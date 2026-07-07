@@ -18,8 +18,13 @@ public class AutoClickAccessibilityService extends AccessibilityService {
         void onStatusChanged(boolean running, boolean paused, String message);
     }
 
+    public interface StepCallback {
+        void onStepDispatch(ClickStep step, int startX, int startY, int endX, int endY, int stepIndex);
+    }
+
     private static AutoClickAccessibilityService instance;
     private static final List<StatusCallback> statusCallbacks = new CopyOnWriteArrayList<>();
+    private static final List<StepCallback> stepCallbacks = new CopyOnWriteArrayList<>();
 
     private AutoClickEngine engine;
     private String lastMessage = "服务未连接";
@@ -46,6 +51,17 @@ public class AutoClickAccessibilityService extends AccessibilityService {
 
     public static void removeStatusCallback(StatusCallback callback) {
         statusCallbacks.remove(callback);
+    }
+
+    public static void addStepCallback(StepCallback callback) {
+        if (callback == null || stepCallbacks.contains(callback)) {
+            return;
+        }
+        stepCallbacks.add(callback);
+    }
+
+    public static void removeStepCallback(StepCallback callback) {
+        stepCallbacks.remove(callback);
     }
 
     public static boolean startProfile(ClickProfile profile) {
@@ -82,8 +98,8 @@ public class AutoClickAccessibilityService extends AccessibilityService {
         instance = this;
         engine = new AutoClickEngine(new AutoClickEngine.GestureDispatcher() {
             @Override
-            public boolean dispatch(ClickStep step, int startX, int startY, int endX, int endY) {
-                return dispatchStep(step, startX, startY, endX, endY);
+            public boolean dispatch(ClickStep step, int startX, int startY, int endX, int endY, long durationMs) {
+                return dispatchStep(step, startX, startY, endX, endY, durationMs);
             }
         });
         engine.setStateListener(new AutoClickEngine.StateListener() {
@@ -91,6 +107,12 @@ public class AutoClickAccessibilityService extends AccessibilityService {
             public void onStateChanged(boolean running, boolean paused, String message) {
                 lastMessage = message;
                 notifyExternal(running, paused, message);
+            }
+        });
+        engine.setStepListener(new AutoClickEngine.StepListener() {
+            @Override
+            public void onStepDispatch(ClickStep step, int startX, int startY, int endX, int endY, int stepIndex) {
+                notifyStep(step, startX, startY, endX, endY, stepIndex);
             }
         });
         lastMessage = "无障碍服务已连接";
@@ -120,7 +142,7 @@ public class AutoClickAccessibilityService extends AccessibilityService {
         super.onDestroy();
     }
 
-    private boolean dispatchStep(ClickStep step, int startX, int startY, int endX, int endY) {
+    private boolean dispatchStep(ClickStep step, int startX, int startY, int endX, int endY, long durationMs) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
             return false;
         }
@@ -132,7 +154,7 @@ public class AutoClickAccessibilityService extends AccessibilityService {
         GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(
                 path,
                 0,
-                Math.max(1, step.getDurationMs())
+                Math.max(1, durationMs)
         );
         GestureDescription description = new GestureDescription.Builder()
                 .addStroke(stroke)
@@ -143,6 +165,12 @@ public class AutoClickAccessibilityService extends AccessibilityService {
     private static void notifyExternal(boolean running, boolean paused, String message) {
         for (StatusCallback callback : statusCallbacks) {
             callback.onStatusChanged(running, paused, message);
+        }
+    }
+
+    private static void notifyStep(ClickStep step, int startX, int startY, int endX, int endY, int stepIndex) {
+        for (StepCallback callback : stepCallbacks) {
+            callback.onStepDispatch(step, startX, startY, endX, endY, stepIndex);
         }
     }
 }

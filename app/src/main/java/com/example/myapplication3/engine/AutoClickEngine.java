@@ -11,11 +11,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AutoClickEngine {
     public interface GestureDispatcher {
-        boolean dispatch(ClickStep step, int startX, int startY, int endX, int endY);
+        boolean dispatch(ClickStep step, int startX, int startY, int endX, int endY, long durationMs);
     }
 
     public interface StateListener {
         void onStateChanged(boolean running, boolean paused, String message);
+    }
+
+    public interface StepListener {
+        void onStepDispatch(ClickStep step, int startX, int startY, int endX, int endY, int stepIndex);
     }
 
     private final GestureDispatcher dispatcher;
@@ -25,6 +29,7 @@ public class AutoClickEngine {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
     private StateListener stateListener;
+    private StepListener stepListener;
 
     public AutoClickEngine(GestureDispatcher dispatcher) {
         this(dispatcher, new Random());
@@ -38,6 +43,10 @@ public class AutoClickEngine {
 
     public void setStateListener(StateListener stateListener) {
         this.stateListener = stateListener;
+    }
+
+    public void setStepListener(StepListener stepListener) {
+        this.stepListener = stepListener;
     }
 
     public boolean isRunning() {
@@ -103,7 +112,7 @@ public class AutoClickEngine {
         int completedLoops = 0;
         try {
             while (running.get() && (profile.isInfiniteLoop() || completedLoops < profile.getLoopCount())) {
-                runSteps(profile.getSteps());
+                runSteps(profile.getSteps(), profile.getSpeedMultiplier());
                 completedLoops++;
             }
             running.set(false);
@@ -117,13 +126,14 @@ public class AutoClickEngine {
         }
     }
 
-    private void runSteps(List<ClickStep> steps) throws InterruptedException {
-        for (ClickStep step : steps) {
+    private void runSteps(List<ClickStep> steps, double speedMultiplier) throws InterruptedException {
+        for (int i = 0; i < steps.size(); i++) {
+            ClickStep step = steps.get(i);
             if (!running.get()) {
                 return;
             }
             waitIfPaused();
-            sleepInterruptibly(step.getDelayMs());
+            sleepInterruptibly(scaleDuration(step.getDelayMs(), speedMultiplier));
             if (!running.get()) {
                 return;
             }
@@ -131,14 +141,21 @@ public class AutoClickEngine {
             int[] end = step.isSwipe()
                     ? randomize(step.getEndX(), step.getEndY(), step.getRandomRadius())
                     : new int[]{start[0], start[1]};
-            boolean accepted = dispatcher.dispatch(step, start[0], start[1], end[0], end[1]);
+            long scaledDurationMs = Math.max(1, scaleDuration(step.getDurationMs(), speedMultiplier));
+            notifyStep(step, start[0], start[1], end[0], end[1], i + 1);
+            boolean accepted = dispatcher.dispatch(step, start[0], start[1], end[0], end[1], scaledDurationMs);
             if (!accepted) {
                 running.set(false);
                 notifyState(false, false, "系统拒绝执行手势");
                 return;
             }
-            sleepInterruptibly(step.getDurationMs() + 80);
+            sleepInterruptibly(scaleDuration(step.getDurationMs() + 80, speedMultiplier));
         }
+    }
+
+    private long scaleDuration(long millis, double speedMultiplier) {
+        double safeMultiplier = Math.max(0.5, Math.min(4.0, speedMultiplier));
+        return Math.max(0, Math.round(millis / safeMultiplier));
     }
 
     private void waitIfPaused() throws InterruptedException {
@@ -176,6 +193,12 @@ public class AutoClickEngine {
     private void notifyState(boolean isRunning, boolean isPaused, String message) {
         if (stateListener != null) {
             stateListener.onStateChanged(isRunning, isPaused, message);
+        }
+    }
+
+    private void notifyStep(ClickStep step, int startX, int startY, int endX, int endY, int stepIndex) {
+        if (stepListener != null) {
+            stepListener.onStepDispatch(step, startX, startY, endX, endY, stepIndex);
         }
     }
 }

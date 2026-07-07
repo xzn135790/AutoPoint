@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:background="@drawable/bg_floating_panel"
     android:elevation="12dp"
     android:orientation="vertical"
@@ -10,7 +10,7 @@
 
     <TextView
         android:id="@+id/floatingStatusText"
-        android:layout_width="180dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:maxLines="2"
@@ -20,36 +20,155 @@
         android:textStyle="bold" />
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:orientation="horizontal">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/floatingStartButton"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:text="开始"
-            android:textColor="@color/app_primary"
-            app:cornerRadius="8dp" />
+        <Button
+            android:id="@+id/executeModeButton"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:minWidth="0dp"
+            android:text="开始录制"
+            android:textSize="12sp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/floatingPauseButton"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:text="暂停"
-            android:textColor="@color/app_warning"
-            app:cornerRadius="8dp" />
+        <Button
+            android:id="@+id/crosshairModeButton"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:minWidth="0dp"
+            android:text="取点"
+            android:textSize="12sp"
+            android:visibility="gone" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/floatingStopButton"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:text="停止"
-            android:textColor="@color/app_text_secondary"
-            app:cornerRadius="8dp" />
+        <Button
+            android:id="@+id/recordModeButton"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:minWidth="0dp"
+            android:text="录制"
+            android:textSize="12sp"
+            android:visibility="gone" />
     </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/executeActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/floatingStartButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:text="使用方案"
+            android:textColor="@color/app_primary" />
+
+        <Button
+            android:id="@+id/floatingPauseButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:text="暂停"
+            android:textColor="@color/app_warning" />
+
+        <Button
+            android:id="@+id/floatingStopButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:text="停止"
+            android:textColor="@color/app_text_secondary" />
+
+        <Button
+            android:id="@+id/closeFloatingButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:text="关闭"
+            android:textColor="@color/app_text_secondary" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/crosshairActions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/addClickPointButton"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:text="添加点击"
+            android:textColor="@color/app_primary"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/setSwipeStartButton"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:text="滑动起点"
+            android:textColor="@color/app_warning"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/setSwipeEndButton"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:text="滑动终点"
+            android:textColor="@color/app_success"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/recordingActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/stopRecordingButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:text="保存"
+            android:textColor="@color/app_primary" />
+
+        <Button
+            android:id="@+id/undoRecordedStepButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:text="撤销上一步"
+            android:textColor="@color/app_warning" />
+
+        <Button
+            android:id="@+id/useRecordedPlanButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:text="使用方案"
+            android:textColor="@color/app_success" />
+
+        <Button
+            android:id="@+id/closeRecordingButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:text="关闭"
+            android:textColor="@color/app_text_secondary" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/resizeHandle"
+        android:layout_width="match_parent"
+        android:layout_height="28dp"
+        android:gravity="end|center_vertical"
+        android:text="拖动调大小"
+        android:textColor="@color/app_text_secondary"
+        android:textSize="11sp" />
 </LinearLayout>

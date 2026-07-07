@@ -2,6 +2,8 @@ package com.example.myapplication3;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -27,6 +29,7 @@ import com.example.myapplication3.model.ClickStep;
 import com.example.myapplication3.service.AutoClickAccessibilityService;
 import com.example.myapplication3.service.FloatingControlService;
 import com.example.myapplication3.store.ClickProfileStore;
+import com.example.myapplication3.util.AppLogger;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
@@ -38,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private List<ClickProfile> profiles = new ArrayList<>();
     private ClickProfile currentProfile;
     private Spinner profileSpinner;
+    private Spinner speedSpinner;
     private TextView statusText;
     private EditText loopCountInput;
     private SwitchMaterial infiniteSwitch;
@@ -59,7 +63,16 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (profileStore != null) {
+            loadProfiles();
+        }
         updatePermissionStatus();
+    }
+
+    @Override
+    protected void onPause() {
+        saveCurrentProfileFromInputs();
+        super.onPause();
     }
 
     @Override
@@ -71,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
     private void bindViews() {
         statusText = findViewById(R.id.statusText);
         profileSpinner = findViewById(R.id.profileSpinner);
+        speedSpinner = findViewById(R.id.speedSpinner);
         loopCountInput = findViewById(R.id.loopCountInput);
         infiniteSwitch = findViewById(R.id.infiniteSwitch);
         stepContainer = findViewById(R.id.stepContainer);
@@ -86,9 +100,16 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.overlayButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                AppLogger.i(MainActivity.this, "Open overlay permission settings");
                 Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         Uri.parse("package:" + getPackageName()));
                 startActivity(intent);
+            }
+        });
+        findViewById(R.id.logButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showLogDialog();
             }
         });
         findViewById(R.id.addProfileButton).setOnClickListener(new View.OnClickListener() {
@@ -121,10 +142,23 @@ public class MainActivity extends AppCompatActivity {
                 bindCurrentProfile();
             }
         });
+        findViewById(R.id.editProfileNameButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                renameCurrentProfile();
+            }
+        });
         findViewById(R.id.deleteProfileButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 deleteCurrentProfile();
+            }
+        });
+        findViewById(R.id.launchProfileButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                saveCurrentProfileFromInputs();
+                startProfileBubble();
             }
         });
         findViewById(R.id.addClickStepButton).setOnClickListener(new View.OnClickListener() {
@@ -146,7 +180,15 @@ public class MainActivity extends AppCompatActivity {
                 startFloatingControls();
             }
         });
+        findViewById(R.id.saveRunConfigButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                saveCurrentProfileFromInputs();
+                Toast.makeText(MainActivity.this, "循环和倍速已保存", Toast.LENGTH_SHORT).show();
+            }
+        });
         infiniteSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> loopCountInput.setEnabled(!isChecked));
+        setupSpeedSpinner();
         profileSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -216,6 +258,7 @@ public class MainActivity extends AppCompatActivity {
         loopCountInput.setText(String.valueOf(currentProfile.getLoopCount()));
         infiniteSwitch.setChecked(currentProfile.isInfiniteLoop());
         loopCountInput.setEnabled(!currentProfile.isInfiniteLoop());
+        bindSpeedSelection(currentProfile.getSpeedMultiplier());
         renderSteps();
     }
 
@@ -300,12 +343,27 @@ public class MainActivity extends AppCompatActivity {
         bindCurrentProfile();
     }
 
+    private void renameCurrentProfile() {
+        if (currentProfile == null) {
+            return;
+        }
+        showProfileNameDialog("编辑方案名", currentProfile.getName(), new ProfileNameConsumer() {
+            @Override
+            public void accept(String name) {
+                currentProfile.setName(name);
+                saveProfiles();
+                refreshProfileSpinner();
+            }
+        });
+    }
+
     private void saveCurrentProfileFromInputs() {
         if (currentProfile == null) {
             return;
         }
         currentProfile.setLoopCount(parsePositiveInt(loopCountInput, 1));
         currentProfile.setInfiniteLoop(infiniteSwitch.isChecked());
+        currentProfile.setSpeedMultiplier(parseSelectedSpeed());
         saveProfiles();
     }
 
@@ -378,14 +436,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showProfileNameDialog(String title, String defaultName, final ProfileNameConsumer consumer) {
+        final LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        int outerPadding = (int) (24 * getResources().getDisplayMetrics().density);
+        container.setPadding(outerPadding, 8, outerPadding, 0);
+
         final EditText input = new EditText(this);
         input.setSingleLine(true);
         input.setText(defaultName);
-        int padding = (int) (20 * getResources().getDisplayMetrics().density);
-        input.setPadding(padding, 0, padding, 0);
+        input.selectAll();
+        input.setHint("请输入方案名称");
+        input.setMinHeight((int) (48 * getResources().getDisplayMetrics().density));
+        int padding = (int) (12 * getResources().getDisplayMetrics().density);
+        input.setPadding(padding, 8, padding, 8);
+        container.addView(input, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
         final AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(title)
-                .setView(input)
+                .setView(container)
                 .setNegativeButton("取消", null)
                 .setPositiveButton("确定", null)
                 .create();
@@ -431,21 +501,75 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void startFloatingControls() {
-        if (!isAccessibilityEnabled()) {
-            Toast.makeText(this, "请先开启无障碍服务", Toast.LENGTH_SHORT).show();
-            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-            return;
+    private void setupSpeedSpinner() {
+        List<String> speeds = new ArrayList<>();
+        for (int i = 5; i <= 40; i++) {
+            speeds.add(String.format(java.util.Locale.CHINA, "%.1f 倍率", i / 10.0));
         }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, speeds);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        speedSpinner.setAdapter(adapter);
+    }
+
+    private void bindSpeedSelection(double speedMultiplier) {
+        int index = (int) Math.round((Math.max(0.5, Math.min(4.0, speedMultiplier)) - 0.5) * 10);
+        speedSpinner.setSelection(Math.max(0, Math.min(35, index)));
+    }
+
+    private double parseSelectedSpeed() {
+        return 0.5 + speedSpinner.getSelectedItemPosition() / 10.0;
+    }
+
+    private void startFloatingControls() {
+        boolean accessibility = isAccessibilityEnabled();
+        boolean overlay = Settings.canDrawOverlays(this);
+        AppLogger.i(this, "Start floating recording requested. accessibility=" + accessibility + ", overlay=" + overlay);
         if (!Settings.canDrawOverlays(this)) {
+            AppLogger.i(this, "Overlay permission missing, open settings");
             Toast.makeText(this, R.string.overlay_permission_tip, Toast.LENGTH_SHORT).show();
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:" + getPackageName()));
             startActivity(intent);
             return;
         }
-        startService(new Intent(this, FloatingControlService.class));
-        Toast.makeText(this, "悬浮控制条已打开", Toast.LENGTH_SHORT).show();
+        try {
+            Intent intent = new Intent(this, FloatingControlService.class);
+            startService(intent);
+            AppLogger.i(this, "FloatingControlService startService called");
+            Toast.makeText(this, "悬浮窗已打开，请切换界面后点开始录制", Toast.LENGTH_SHORT).show();
+            moveTaskToBack(true);
+        } catch (RuntimeException e) {
+            AppLogger.e(this, "Failed to start FloatingControlService", e);
+            Toast.makeText(this, "启动悬浮录制失败，请查看日志", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void startProfileBubble() {
+        boolean accessibility = isAccessibilityEnabled();
+        boolean overlay = Settings.canDrawOverlays(this);
+        AppLogger.i(this, "Start profile bubble requested. accessibility=" + accessibility + ", overlay=" + overlay);
+        if (!accessibility) {
+            Toast.makeText(this, "请先开启无障碍服务", Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            return;
+        }
+        if (!overlay) {
+            Toast.makeText(this, R.string.overlay_permission_tip, Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+            return;
+        }
+        try {
+            Intent intent = new Intent(this, FloatingControlService.class);
+            intent.putExtra(FloatingControlService.EXTRA_SHOW_PROFILE_BUBBLE, true);
+            startService(intent);
+            Toast.makeText(this, "方案气泡已打开，点击气泡开始", Toast.LENGTH_SHORT).show();
+            moveTaskToBack(true);
+        } catch (RuntimeException e) {
+            AppLogger.e(this, "Failed to start profile bubble", e);
+            Toast.makeText(this, "启动方案气泡失败，请查看日志", Toast.LENGTH_LONG).show();
+        }
     }
 
     private void updatePermissionStatus() {
@@ -474,6 +598,34 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return false;
+    }
+
+    private void showLogDialog() {
+        final TextView logView = new TextView(this);
+        logView.setText(AppLogger.read(this));
+        logView.setTextIsSelectable(true);
+        int padding = (int) (12 * getResources().getDisplayMetrics().density);
+        logView.setPadding(padding, padding, padding, padding);
+
+        final android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+        scrollView.addView(logView);
+
+        new AlertDialog.Builder(this)
+                .setTitle("运行日志")
+                .setView(scrollView)
+                .setPositiveButton("复制", (dialog, which) -> {
+                    ClipboardManager manager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    if (manager != null) {
+                        manager.setPrimaryClip(ClipData.newPlainText("轻点连点器日志", logView.getText()));
+                        Toast.makeText(this, "日志已复制", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("清空", (dialog, which) -> {
+                    AppLogger.clear(this);
+                    Toast.makeText(this, "日志已清空", Toast.LENGTH_SHORT).show();
+                })
+                .setNeutralButton("关闭", null)
+                .show();
     }
 
     private interface ProfileNameConsumer {
