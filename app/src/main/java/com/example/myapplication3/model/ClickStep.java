@@ -17,6 +17,8 @@ public class ClickStep {
     private int endY;
     private long delayMs;
     private long durationMs;
+    private long delayRandomMs;
+    private long durationRandomMs;
     private int randomRadius;
 
     public ClickStep(String type) {
@@ -34,6 +36,22 @@ public class ClickStep {
             long durationMs,
             int randomRadius
     ) {
+        this(id, type, startX, startY, endX, endY, delayMs, durationMs, 0L, 0L, randomRadius);
+    }
+
+    public ClickStep(
+            String id,
+            String type,
+            int startX,
+            int startY,
+            int endX,
+            int endY,
+            long delayMs,
+            long durationMs,
+            long delayRandomMs,
+            long durationRandomMs,
+            int randomRadius
+    ) {
         this.id = id;
         this.type = TYPE_SWIPE.equals(type) ? TYPE_SWIPE : TYPE_CLICK;
         this.startX = Math.max(0, startX);
@@ -42,6 +60,8 @@ public class ClickStep {
         this.endY = Math.max(0, endY);
         this.delayMs = Math.max(0, delayMs);
         this.durationMs = Math.max(1, durationMs);
+        this.delayRandomMs = Math.max(0, delayRandomMs);
+        this.durationRandomMs = Math.max(0, durationRandomMs);
         this.randomRadius = Math.max(0, randomRadius);
     }
 
@@ -63,6 +83,8 @@ public class ClickStep {
                 object.optInt("endY", 960),
                 object.optLong("delayMs", 300),
                 object.optLong("durationMs", 80),
+                object.optLong("delayRandomMs", 0),
+                object.optLong("durationRandomMs", 0),
                 object.optInt("randomRadius", 0)
         );
     }
@@ -77,6 +99,8 @@ public class ClickStep {
         object.put("endY", endY);
         object.put("delayMs", delayMs);
         object.put("durationMs", durationMs);
+        object.put("delayRandomMs", delayRandomMs);
+        object.put("durationRandomMs", durationRandomMs);
         object.put("randomRadius", randomRadius);
         return object;
     }
@@ -143,6 +167,22 @@ public class ClickStep {
 
     public void setDurationMs(long durationMs) {
         this.durationMs = Math.max(1, durationMs);
+    }
+
+    public long getDelayRandomMs() {
+        return delayRandomMs;
+    }
+
+    public void setDelayRandomMs(long delayRandomMs) {
+        this.delayRandomMs = Math.max(0, delayRandomMs);
+    }
+
+    public long getDurationRandomMs() {
+        return durationRandomMs;
+    }
+
+    public void setDurationRandomMs(long durationRandomMs) {
+        this.durationRandomMs = Math.max(0, durationRandomMs);
     }
 
     public int getRandomRadius() {

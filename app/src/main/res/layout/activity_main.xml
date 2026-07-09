@@ -24,7 +24,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="轻点连点器"
+                android:text="轻点连点器 ✦"
                 android:textColor="@color/white"
                 android:textSize="25sp"
                 android:textStyle="bold" />
@@ -52,6 +52,7 @@
                     android:layout_weight="1"
                     android:text="无障碍"
                     android:textColor="@color/white"
+                    app:cornerRadius="14dp"
                     app:strokeColor="#BBD7FF" />
 
                 <Space
@@ -66,6 +67,7 @@
                     android:layout_weight="1"
                     android:text="悬浮窗"
                     android:textColor="@color/white"
+                    app:cornerRadius="14dp"
                     app:strokeColor="#BBD7FF" />
             </LinearLayout>
 
@@ -77,6 +79,7 @@
                 android:layout_marginTop="10dp"
                 android:text="查看日志"
                 android:textColor="@color/white"
+                app:cornerRadius="14dp"
                 app:strokeColor="#BBD7FF" />
         </LinearLayout>
 
@@ -108,52 +111,97 @@
                     android:id="@+id/profileSpinner"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_input"
+                    android:minHeight="48dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:spinnerMode="dropdown" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
                     android:orientation="horizontal">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/addProfileButton"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="44dp"
-                        android:layout_weight="1"
-                        android:text="新建" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/addProfileButton"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:text="新建"
+                            android:textColor="@color/app_primary"
+                            app:backgroundTint="@color/app_soft_pink"
+                            app:cornerRadius="14dp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/copyProfileButton"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="44dp"
-                        android:layout_weight="1"
-                        android:text="复制" />
+                        <Space
+                            android:layout_width="8dp"
+                            android:layout_height="1dp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/editProfileNameButton"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="44dp"
-                        android:layout_weight="1"
-                        android:text="改名" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/copyProfileButton"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:text="复制"
+                            android:textColor="@color/app_primary"
+                            app:backgroundTint="@color/app_soft_purple"
+                            app:cornerRadius="14dp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/deleteProfileButton"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="44dp"
-                        android:layout_weight="1"
-                        android:text="删除" />
+                        <Space
+                            android:layout_width="8dp"
+                            android:layout_height="1dp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/launchProfileButton"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="44dp"
-                        android:layout_weight="1"
-                        android:text="启动" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/editProfileNameButton"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:text="改名"
+                            android:textColor="@color/app_primary"
+                            app:backgroundTint="@color/app_soft_pink"
+                            app:cornerRadius="14dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/deleteProfileButton"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:text="删除"
+                            android:textColor="@color/app_warning"
+                            app:backgroundTint="#FFFFF7F9"
+                            app:cornerRadius="14dp" />
+
+                        <Space
+                            android:layout_width="8dp"
+                            android:layout_height="1dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/launchProfileButton"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="2"
+                            android:text="启动"
+                            android:textColor="@color/white"
+                            app:backgroundTint="@color/app_primary"
+                            app:cornerRadius="14dp" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
@@ -177,25 +225,69 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="循环次数"
+                        android:textColor="@color/app_text_secondary"
+                        android:textSize="13sp" />
 
                     <EditText
                         android:id="@+id/loopCountInput"
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="48dp"
-                        android:layout_weight="1"
-                        android:hint="循环次数"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_input"
+                        android:hint="最多 999"
                         android:inputType="number"
-                        android:maxLines="1" />
+                        android:maxLength="3"
+                        android:maxLines="1"
+                        android:textColor="@color/app_text_primary"
+                        android:textColorHint="@color/app_text_secondary" />
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/infiniteSwitch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:text="持续运行" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="持续运行"
+                            android:textColor="@color/app_text_primary"
+                            android:textSize="15sp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/infiniteSwitch"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
                 </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="每轮间隔（毫秒）"
+                    android:textColor="@color/app_text_secondary"
+                    android:textSize="13sp" />
+
+                <EditText
+                    android:id="@+id/loopIntervalInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_input"
+                    android:hint="默认 1000"
+                    android:inputType="number"
+                    android:maxLines="1"
+                    android:textColor="@color/app_text_primary"
+                    android:textColorHint="@color/app_text_secondary" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -209,7 +301,12 @@
                     android:id="@+id/speedSpinner"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_input"
+                    android:minHeight="48dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:spinnerMode="dropdown" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/saveRunConfigButton"
@@ -217,8 +314,12 @@
                     android:layout_width="match_parent"
                     android:layout_height="44dp"
                     android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_button_soft"
                     android:text="保存循环和倍速"
-                    app:cornerRadius="8dp" />
+                    android:textColor="@color/app_primary"
+                    app:backgroundTint="@null"
+                    app:cornerRadius="14dp"
+                    app:strokeColor="@color/app_line" />
             </LinearLayout>
 
             <LinearLayout
@@ -278,9 +379,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="54dp"
                 android:layout_marginTop="16dp"
+                android:background="@drawable/bg_button_primary"
                 android:text="打开悬浮录制取点"
+                android:textColor="@color/white"
                 android:textSize="15sp"
-                app:cornerRadius="8dp" />
+                app:backgroundTint="@null"
+                app:cornerRadius="16dp" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

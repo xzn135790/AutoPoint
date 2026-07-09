@@ -114,6 +114,10 @@ public class AutoClickEngine {
             while (running.get() && (profile.isInfiniteLoop() || completedLoops < profile.getLoopCount())) {
                 runSteps(profile.getSteps(), profile.getSpeedMultiplier());
                 completedLoops++;
+                if (running.get() && (profile.isInfiniteLoop() || completedLoops < profile.getLoopCount())) {
+                    waitIfPaused();
+                    sleepInterruptibly(profile.getLoopIntervalMs());
+                }
             }
             running.set(false);
             paused.set(false);
@@ -133,7 +137,7 @@ public class AutoClickEngine {
                 return;
             }
             waitIfPaused();
-            sleepInterruptibly(scaleDuration(step.getDelayMs(), speedMultiplier));
+            sleepInterruptibly(scaleDuration(randomizeDuration(step.getDelayMs(), step.getDelayRandomMs(), 0L), speedMultiplier));
             if (!running.get()) {
                 return;
             }
@@ -141,7 +145,8 @@ public class AutoClickEngine {
             int[] end = step.isSwipe()
                     ? randomize(step.getEndX(), step.getEndY(), step.getRandomRadius())
                     : new int[]{start[0], start[1]};
-            long scaledDurationMs = Math.max(1, scaleDuration(step.getDurationMs(), speedMultiplier));
+            long actualDurationMs = randomizeDuration(step.getDurationMs(), step.getDurationRandomMs(), 1L);
+            long scaledDurationMs = Math.max(1, scaleDuration(actualDurationMs, speedMultiplier));
             notifyStep(step, start[0], start[1], end[0], end[1], i + 1);
             boolean accepted = dispatcher.dispatch(step, start[0], start[1], end[0], end[1], scaledDurationMs);
             if (!accepted) {
@@ -149,8 +154,29 @@ public class AutoClickEngine {
                 notifyState(false, false, "系统拒绝执行手势");
                 return;
             }
-            sleepInterruptibly(scaleDuration(step.getDurationMs() + 80, speedMultiplier));
+            sleepInterruptibly(scaleDuration(actualDurationMs + 80, speedMultiplier));
         }
+    }
+
+    private long randomizeDuration(long baseMs, long randomMs, long minMs) {
+        long safeBase = Math.max(minMs, baseMs);
+        long safeRandom = Math.min(Math.max(0L, randomMs), Long.MAX_VALUE / 4L);
+        if (safeRandom == 0L) {
+            return safeBase;
+        }
+        long offset = nextLongInclusive(safeRandom * 2L) - safeRandom;
+        return Math.max(minMs, safeBase + offset);
+    }
+
+    private long nextLongInclusive(long boundInclusive) {
+        if (boundInclusive <= 0L) {
+            return 0L;
+        }
+        long candidate;
+        do {
+            candidate = random.nextLong() & Long.MAX_VALUE;
+        } while (candidate > Long.MAX_VALUE - ((Long.MAX_VALUE % (boundInclusive + 1L))));
+        return candidate % (boundInclusive + 1L);
     }
 
     private long scaleDuration(long millis, double speedMultiplier) {

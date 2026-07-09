@@ -11,6 +11,7 @@ import android.provider.Settings;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -44,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     private Spinner speedSpinner;
     private TextView statusText;
     private EditText loopCountInput;
+    private EditText loopIntervalInput;
     private SwitchMaterial infiniteSwitch;
     private LinearLayout stepContainer;
     private boolean bindingSpinner;
@@ -86,6 +88,7 @@ public class MainActivity extends AppCompatActivity {
         profileSpinner = findViewById(R.id.profileSpinner);
         speedSpinner = findViewById(R.id.speedSpinner);
         loopCountInput = findViewById(R.id.loopCountInput);
+        loopIntervalInput = findViewById(R.id.loopIntervalInput);
         infiniteSwitch = findViewById(R.id.infiniteSwitch);
         stepContainer = findViewById(R.id.stepContainer);
     }
@@ -244,8 +247,8 @@ public class MainActivity extends AppCompatActivity {
                 selectedIndex = i;
             }
         }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.item_spinner_text, names);
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         profileSpinner.setAdapter(adapter);
         profileSpinner.setSelection(selectedIndex);
         bindingSpinner = false;
@@ -256,6 +259,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         loopCountInput.setText(String.valueOf(currentProfile.getLoopCount()));
+        loopIntervalInput.setText(String.valueOf(currentProfile.getLoopIntervalMs()));
         infiniteSwitch.setChecked(currentProfile.isInfiniteLoop());
         loopCountInput.setEnabled(!currentProfile.isInfiniteLoop());
         bindSpeedSelection(currentProfile.getSpeedMultiplier());
@@ -311,15 +315,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String buildStepDetail(ClickStep step) {
+        String timing = "延时 " + step.getDelayMs() + "ms" + formatTimeRandom(step.getDelayRandomMs()) +
+                " | 持续 " + step.getDurationMs() + "ms" + formatTimeRandom(step.getDurationRandomMs());
         if (step.isSwipe()) {
-            return "延时 " + step.getDelayMs() + "ms | " +
+            return timing + " | " +
                     "(" + step.getStartX() + "," + step.getStartY() + ") -> " +
                     "(" + step.getEndX() + "," + step.getEndY() + ") | " +
-                    "持续 " + step.getDurationMs() + "ms | 偏差 ±" + step.getRandomRadius() + "px";
+                    "坐标偏差 ±" + step.getRandomRadius() + "px";
         }
-        return "延时 " + step.getDelayMs() + "ms | " +
+        return timing + " | " +
                 "(" + step.getStartX() + "," + step.getStartY() + ") | " +
-                "持续 " + step.getDurationMs() + "ms | 偏差 ±" + step.getRandomRadius() + "px";
+                "坐标偏差 ±" + step.getRandomRadius() + "px";
+    }
+
+    private String formatTimeRandom(long randomMs) {
+        return randomMs > 0 ? "±" + randomMs + "ms" : "";
     }
 
     private void addStep(ClickStep step) {
@@ -362,6 +372,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         currentProfile.setLoopCount(parsePositiveInt(loopCountInput, 1));
+        currentProfile.setLoopIntervalMs(parsePositiveLong(loopIntervalInput, 1000L));
         currentProfile.setInfiniteLoop(infiniteSwitch.isChecked());
         currentProfile.setSpeedMultiplier(parseSelectedSpeed());
         saveProfiles();
@@ -383,7 +394,9 @@ public class MainActivity extends AppCompatActivity {
         final EditText endXInput = view.findViewById(R.id.endXInput);
         final EditText endYInput = view.findViewById(R.id.endYInput);
         final EditText delayInput = view.findViewById(R.id.delayInput);
+        final EditText delayRandomInput = view.findViewById(R.id.delayRandomInput);
         final EditText durationInput = view.findViewById(R.id.durationInput);
+        final EditText durationRandomInput = view.findViewById(R.id.durationRandomInput);
         final EditText randomRadiusInput = view.findViewById(R.id.randomRadiusInput);
 
         clickRadio.setChecked(!step.isSwipe());
@@ -394,7 +407,9 @@ public class MainActivity extends AppCompatActivity {
         endXInput.setText(String.valueOf(step.getEndX()));
         endYInput.setText(String.valueOf(step.getEndY()));
         delayInput.setText(String.valueOf(step.getDelayMs()));
+        delayRandomInput.setText(String.valueOf(step.getDelayRandomMs()));
         durationInput.setText(String.valueOf(step.getDurationMs()));
+        durationRandomInput.setText(String.valueOf(step.getDurationRandomMs()));
         randomRadiusInput.setText(String.valueOf(step.getRandomRadius()));
 
         typeGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
@@ -413,7 +428,8 @@ public class MainActivity extends AppCompatActivity {
         dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (!validateRequired(startXInput, startYInput, delayInput, durationInput, randomRadiusInput)) {
+                if (!validateRequired(startXInput, startYInput, delayInput, delayRandomInput,
+                        durationInput, durationRandomInput, randomRadiusInput)) {
                     return;
                 }
                 boolean swipe = typeGroup.getCheckedRadioButtonId() == R.id.swipeTypeRadio;
@@ -426,13 +442,21 @@ public class MainActivity extends AppCompatActivity {
                 step.setEndX(swipe ? parsePositiveInt(endXInput, 0) : step.getStartX());
                 step.setEndY(swipe ? parsePositiveInt(endYInput, 0) : step.getStartY());
                 step.setDelayMs(parsePositiveLong(delayInput, 0));
+                step.setDelayRandomMs(parsePositiveLong(delayRandomInput, 0));
                 step.setDurationMs(parsePositiveLong(durationInput, 1));
+                step.setDurationRandomMs(parsePositiveLong(durationRandomInput, 0));
                 step.setRandomRadius(parsePositiveInt(randomRadiusInput, 0));
                 onSaved.run();
                 dialog.dismiss();
             }
         }));
         dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            int width = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
+            int height = (int) (getResources().getDisplayMetrics().heightPixels * 0.85f);
+            window.setLayout(width, height);
+        }
     }
 
     private void showProfileNameDialog(String title, String defaultName, final ProfileNameConsumer consumer) {
@@ -506,8 +530,8 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 5; i <= 40; i++) {
             speeds.add(String.format(java.util.Locale.CHINA, "%.1f 倍率", i / 10.0));
         }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, speeds);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.item_spinner_text, speeds);
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         speedSpinner.setAdapter(adapter);
     }
 

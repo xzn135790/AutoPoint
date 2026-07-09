@@ -15,27 +15,27 @@
                 android:type="linear">
                 <item
                     android:offset="0"
-                    android:color="#050816" />
+                    android:color="#2E1065" />
                 <item
                     android:offset="0.45"
-                    android:color="#0F2557" />
+                    android:color="#8B5CF6" />
                 <item
                     android:offset="1"
-                    android:color="#0B8F8A" />
+                    android:color="#06B6D4" />
             </gradient>
         </aapt:attr>
     </path>
     <path
-        android:fillColor="#121B3A"
+        android:fillColor="#33FFFFFF"
         android:pathData="M18,18h72a10,10 0,0 1,10 10v52a10,10 0,0 1,-10 10h-72a10,10 0,0 1,-10 -10v-52a10,10 0,0 1,10 -10z" />
     <path
         android:fillColor="#00000000"
         android:pathData="M20,34h18l7,-8h18M88,40h-16l-7,8h-18M18,72h22l8,8h24M90,66h-18l-9,-10h-18"
-        android:strokeColor="#334DEBFF"
+        android:strokeColor="#66FFFFFF"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:strokeWidth="2" />
     <path
-        android:fillColor="#394DEBFF"
+        android:fillColor="#66FFFFFF"
         android:pathData="M38,34a3,3 0,1 0,0.1 0M63,26a3,3 0,1 0,0.1 0M47,48a3,3 0,1 0,0.1 0M72,40a3,3 0,1 0,0.1 0M40,72a3,3 0,1 0,0.1 0M72,80a3,3 0,1 0,0.1 0" />
 </vector>

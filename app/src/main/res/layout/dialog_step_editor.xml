@@ -101,26 +101,68 @@
             </LinearLayout>
         </LinearLayout>
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="执行前延时（毫秒）"
+            android:textColor="@color/app_text_primary"
+            android:textStyle="bold" />
+
         <EditText
             android:id="@+id/delayInput"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:layout_marginTop="12dp"
-            android:hint="执行前延时 ms"
-            android:inputType="number" />
+            android:hint="例如：300"
+            android:inputType="number"
+            android:maxLines="1" />
+
+        <EditText
+            android:id="@+id/delayRandomInput"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="延时随机偏差，例如：10"
+            android:inputType="number"
+            android:maxLines="1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="点击/滑动持续时间（毫秒）"
+            android:textColor="@color/app_text_primary"
+            android:textStyle="bold" />
 
         <EditText
             android:id="@+id/durationInput"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:hint="点击/滑动持续时间 ms"
-            android:inputType="number" />
+            android:hint="例如：80"
+            android:inputType="number"
+            android:maxLines="1" />
+
+        <EditText
+            android:id="@+id/durationRandomInput"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="持续时间随机偏差，例如：10"
+            android:inputType="number"
+            android:maxLines="1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="随机偏差半径（像素）"
+            android:textColor="@color/app_text_primary"
+            android:textStyle="bold" />
 
         <EditText
             android:id="@+id/randomRadiusInput"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:hint="随机偏差半径 px"
-            android:inputType="number" />
+            android:hint="例如：0"
+            android:inputType="number"
+            android:maxLines="1" />
     </LinearLayout>
 </ScrollView>

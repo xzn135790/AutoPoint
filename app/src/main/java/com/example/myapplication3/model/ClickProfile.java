@@ -13,22 +13,29 @@ public class ClickProfile {
     private String name;
     private int loopCount;
     private boolean infiniteLoop;
+    private long loopIntervalMs;
     private double speedMultiplier;
     private final List<ClickStep> steps;
 
     public ClickProfile(String name) {
-        this(UUID.randomUUID().toString(), name, 1, false, 1.0, new ArrayList<ClickStep>());
+        this(UUID.randomUUID().toString(), name, 1, false, 1000L, 1.0, new ArrayList<ClickStep>());
     }
 
     public ClickProfile(String id, String name, int loopCount, boolean infiniteLoop, List<ClickStep> steps) {
-        this(id, name, loopCount, infiniteLoop, 1.0, steps);
+        this(id, name, loopCount, infiniteLoop, 1000L, 1.0, steps);
     }
 
     public ClickProfile(String id, String name, int loopCount, boolean infiniteLoop, double speedMultiplier, List<ClickStep> steps) {
+        this(id, name, loopCount, infiniteLoop, 1000L, speedMultiplier, steps);
+    }
+
+    public ClickProfile(String id, String name, int loopCount, boolean infiniteLoop,
+                        long loopIntervalMs, double speedMultiplier, List<ClickStep> steps) {
         this.id = id;
         this.name = name == null || name.trim().isEmpty() ? "默认方案" : name.trim();
-        this.loopCount = Math.max(1, loopCount);
+        setLoopCount(loopCount);
         this.infiniteLoop = infiniteLoop;
+        setLoopIntervalMs(loopIntervalMs);
         setSpeedMultiplier(speedMultiplier);
         this.steps = steps == null ? new ArrayList<ClickStep>() : steps;
     }
@@ -50,6 +57,7 @@ public class ClickProfile {
                 object.optString("name", "默认方案"),
                 object.optInt("loopCount", 1),
                 object.optBoolean("infiniteLoop", false),
+                object.optLong("loopIntervalMs", 1000L),
                 object.optDouble("speedMultiplier", 1.0),
                 parsedSteps
         );
@@ -61,6 +69,7 @@ public class ClickProfile {
         object.put("name", name);
         object.put("loopCount", loopCount);
         object.put("infiniteLoop", infiniteLoop);
+        object.put("loopIntervalMs", loopIntervalMs);
         object.put("speedMultiplier", speedMultiplier);
         JSONArray stepArray = new JSONArray();
         for (ClickStep step : steps) {
@@ -82,10 +91,13 @@ public class ClickProfile {
                     step.getEndY(),
                     step.getDelayMs(),
                     step.getDurationMs(),
+                    step.getDelayRandomMs(),
+                    step.getDurationRandomMs(),
                     step.getRandomRadius()
             ));
         }
-        return new ClickProfile(UUID.randomUUID().toString(), newName, loopCount, infiniteLoop, speedMultiplier, copiedSteps);
+        return new ClickProfile(UUID.randomUUID().toString(), newName, loopCount, infiniteLoop,
+                loopIntervalMs, speedMultiplier, copiedSteps);
     }
 
     public String getId() {
@@ -105,7 +117,7 @@ public class ClickProfile {
     }
 
     public void setLoopCount(int loopCount) {
-        this.loopCount = Math.max(1, loopCount);
+        this.loopCount = Math.max(1, Math.min(999, loopCount));
     }
 
     public boolean isInfiniteLoop() {
@@ -114,6 +126,14 @@ public class ClickProfile {
 
     public void setInfiniteLoop(boolean infiniteLoop) {
         this.infiniteLoop = infiniteLoop;
+    }
+
+    public long getLoopIntervalMs() {
+        return loopIntervalMs;
+    }
+
+    public void setLoopIntervalMs(long loopIntervalMs) {
+        this.loopIntervalMs = Math.max(0L, loopIntervalMs);
     }
 
     public double getSpeedMultiplier() {

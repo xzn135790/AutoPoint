@@ -325,6 +325,9 @@ public class FloatingControlService extends Service {
                             if (floatingView != null) {
                                 updateState(running, paused, message);
                             }
+                            if (running && profileBubbleView != null) {
+                                bringProfileBubbleToFront();
+                            }
                             if (!running) {
                                 removeExecutionPreview();
                                 profileBubbleExecuting = false;
@@ -348,6 +351,9 @@ public class FloatingControlService extends Service {
                     anchor.post(new Runnable() {
                         @Override
                         public void run() {
+                            if (profileBubbleView != null) {
+                                return;
+                            }
                             showCurrentExecutionPreview(step, startX, startY, endX, endY, stepIndex);
                         }
                     });
@@ -516,6 +522,7 @@ public class FloatingControlService extends Service {
         }
         profileBubbleExecuting = true;
         updateProfileBubble(true);
+        bringProfileBubbleToFront();
         AppLogger.i(this, "Profile bubble started execution. steps=" + profile.getSteps().size());
     }
 
