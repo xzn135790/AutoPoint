@@ -7,14 +7,18 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.PixelFormat;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.provider.Settings;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -39,20 +43,25 @@ public class FloatingControlService extends Service {
     private static final int RECORD_SWIPE_THRESHOLD_PX = 24;
     private static final long MIN_RECORDED_CLICK_MS = 50L;
     private static final long MIN_RECORDED_SWIPE_MS = 120L;
+    private static final long EXECUTION_PREVIEW_HOLD_MS = 200L;
+    private static final long EXECUTION_PREVIEW_FADE_MS = 600L;
     private static final int FLOATING_DEFAULT_WIDTH_DP = 200;
     private static final int FLOATING_DEFAULT_HEIGHT_DP = 260;
-    private static final int FLOATING_MIN_WIDTH_DP = 160;
-    private static final int FLOATING_MAX_WIDTH_DP = 360;
-    private static final int FLOATING_MIN_HEIGHT_DP = 220;
-    private static final int FLOATING_MAX_HEIGHT_DP = 520;
+    private static final float FLOATING_MIN_SCALE = 0.75f;
+    private static final float FLOATING_MAX_SCALE = 1.75f;
+    private static final int PROFILE_BUBBLE_SIZE_DP = 60;
+    private static final int PROFILE_BADGE_SIZE_DP = 22;
+    private static final int PROFILE_DRAG_THRESHOLD_DP = 4;
+    private static final long PROFILE_LONG_PRESS_MS = 800L;
 
     private WindowManager windowManager;
-    private View floatingView;
+    private View floatingWindowView;
+    private View floatingPanelView;
     private View crosshairView;
     private View recordingView;
     private View executionPreviewView;
-    private LinearLayout profileBubbleView;
-    private TextView profileBubbleText;
+    private FrameLayout profileBubbleView;
+    private TextView profileBubbleBadge;
     private WindowManager.LayoutParams floatingParams;
     private WindowManager.LayoutParams crosshairParams;
     private WindowManager.LayoutParams profileBubbleParams;
@@ -69,12 +78,14 @@ public class FloatingControlService extends Service {
     private float touchStartY;
     private int windowStartX;
     private int windowStartY;
-    private int floatingResizeStartWidth;
-    private int floatingResizeStartHeight;
+    private float floatingScale = 1.0f;
+    private float floatingResizeStartScale;
     private boolean hasSwipeStart;
     private int swipeStartX;
     private int swipeStartY;
     private boolean profileBubbleExecuting;
+    private final Handler profileBubbleHandler = new Handler(Looper.getMainLooper());
+    private Runnable profileBubbleLongPressRunnable;
     private float recordDownX;
     private float recordDownY;
     private float recordDownLocalX;
@@ -99,10 +110,10 @@ public class FloatingControlService extends Service {
             showProfileBubble();
             return START_STICKY;
         }
-        if (floatingView == null) {
+        if (floatingWindowView == null) {
             showFloatingView();
         }
-        if (floatingView != null && intent != null && intent.getBooleanExtra(EXTRA_START_RECORDING, false)) {
+        if (floatingWindowView != null && intent != null && intent.getBooleanExtra(EXTRA_START_RECORDING, false)) {
             AppLogger.i(this, "Service received start recording extra");
             switchMode(MODE_RECORDING);
         }
@@ -123,8 +134,9 @@ public class FloatingControlService extends Service {
         removeExecutionPreview();
         removeRecordingView();
         removeCrosshairView();
-        removeOverlayView(floatingView);
-        floatingView = null;
+        removeOverlayView(floatingWindowView);
+        floatingWindowView = null;
+        floatingPanelView = null;
         super.onDestroy();
     }
 
@@ -133,27 +145,33 @@ public class FloatingControlService extends Service {
         try {
             windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
             AppLogger.i(this, "Inflating floating control layout");
-            floatingView = LayoutInflater.from(this).inflate(R.layout.view_floating_control, null);
+            floatingWindowView = LayoutInflater.from(this).inflate(R.layout.view_floating_control, null);
+            floatingPanelView = floatingWindowView.findViewById(R.id.floatingPanel);
+            floatingScale = 1.0f;
+            floatingPanelView.setPivotX(0.0f);
+            floatingPanelView.setPivotY(0.0f);
+            floatingPanelView.setScaleX(floatingScale);
+            floatingPanelView.setScaleY(floatingScale);
             AppLogger.i(this, "Floating layout inflated");
-            statusText = floatingView.findViewById(R.id.floatingStatusText);
-            executeActions = floatingView.findViewById(R.id.executeActions);
-            crosshairActions = floatingView.findViewById(R.id.crosshairActions);
-            recordingActions = floatingView.findViewById(R.id.recordingActions);
-            Button executeModeButton = floatingView.findViewById(R.id.executeModeButton);
-            Button crosshairModeButton = floatingView.findViewById(R.id.crosshairModeButton);
-            Button recordModeButton = floatingView.findViewById(R.id.recordModeButton);
-            Button startButton = floatingView.findViewById(R.id.floatingStartButton);
-            pauseButton = floatingView.findViewById(R.id.floatingPauseButton);
-            Button stopButton = floatingView.findViewById(R.id.floatingStopButton);
-            Button closeButton = floatingView.findViewById(R.id.closeFloatingButton);
-            Button addClickPointButton = floatingView.findViewById(R.id.addClickPointButton);
-            Button setSwipeStartButton = floatingView.findViewById(R.id.setSwipeStartButton);
-            Button setSwipeEndButton = floatingView.findViewById(R.id.setSwipeEndButton);
-            Button stopRecordingButton = floatingView.findViewById(R.id.stopRecordingButton);
-            Button undoRecordedStepButton = floatingView.findViewById(R.id.undoRecordedStepButton);
-            Button useRecordedPlanButton = floatingView.findViewById(R.id.useRecordedPlanButton);
-            Button closeRecordingButton = floatingView.findViewById(R.id.closeRecordingButton);
-            View resizeHandle = floatingView.findViewById(R.id.resizeHandle);
+            statusText = floatingPanelView.findViewById(R.id.floatingStatusText);
+            executeActions = floatingPanelView.findViewById(R.id.executeActions);
+            crosshairActions = floatingPanelView.findViewById(R.id.crosshairActions);
+            recordingActions = floatingPanelView.findViewById(R.id.recordingActions);
+            Button executeModeButton = floatingPanelView.findViewById(R.id.executeModeButton);
+            Button crosshairModeButton = floatingPanelView.findViewById(R.id.crosshairModeButton);
+            Button recordModeButton = floatingPanelView.findViewById(R.id.recordModeButton);
+            Button startButton = floatingPanelView.findViewById(R.id.floatingStartButton);
+            pauseButton = floatingPanelView.findViewById(R.id.floatingPauseButton);
+            Button stopButton = floatingPanelView.findViewById(R.id.floatingStopButton);
+            Button closeButton = floatingPanelView.findViewById(R.id.closeFloatingButton);
+            Button addClickPointButton = floatingPanelView.findViewById(R.id.addClickPointButton);
+            Button setSwipeStartButton = floatingPanelView.findViewById(R.id.setSwipeStartButton);
+            Button setSwipeEndButton = floatingPanelView.findViewById(R.id.setSwipeEndButton);
+            Button stopRecordingButton = floatingPanelView.findViewById(R.id.stopRecordingButton);
+            Button undoRecordedStepButton = floatingPanelView.findViewById(R.id.undoRecordedStepButton);
+            Button useRecordedPlanButton = floatingPanelView.findViewById(R.id.useRecordedPlanButton);
+            Button closeRecordingButton = floatingPanelView.findViewById(R.id.closeRecordingButton);
+            View resizeHandle = floatingPanelView.findViewById(R.id.resizeHandle);
 
             floatingParams = new WindowManager.LayoutParams(
                     dp(FLOATING_DEFAULT_WIDTH_DP),
@@ -166,7 +184,7 @@ public class FloatingControlService extends Service {
             floatingParams.x = 24;
             floatingParams.y = 180;
 
-            floatingView.setOnTouchListener(new View.OnTouchListener() {
+            floatingPanelView.setOnTouchListener(new View.OnTouchListener() {
                 @Override
                 public boolean onTouch(View view, MotionEvent event) {
                     switch (event.getAction()) {
@@ -179,7 +197,8 @@ public class FloatingControlService extends Service {
                         case MotionEvent.ACTION_MOVE:
                             floatingParams.x = windowStartX + (int) (event.getRawX() - touchStartX);
                             floatingParams.y = windowStartY + (int) (event.getRawY() - touchStartY);
-                            windowManager.updateViewLayout(floatingView, floatingParams);
+                            constrainFloatingWindowToScreen();
+                            windowManager.updateViewLayout(floatingWindowView, floatingParams);
                             return true;
                         default:
                             return false;
@@ -194,15 +213,17 @@ public class FloatingControlService extends Service {
                         case MotionEvent.ACTION_DOWN:
                             touchStartX = event.getRawX();
                             touchStartY = event.getRawY();
-                            floatingResizeStartWidth = floatingParams.width;
-                            floatingResizeStartHeight = floatingParams.height;
+                            floatingResizeStartScale = floatingScale;
                             return true;
                         case MotionEvent.ACTION_MOVE:
-                            int nextWidth = floatingResizeStartWidth + (int) (event.getRawX() - touchStartX);
-                            int nextHeight = floatingResizeStartHeight + (int) (event.getRawY() - touchStartY);
-                            floatingParams.width = clamp(nextWidth, dp(FLOATING_MIN_WIDTH_DP), dp(FLOATING_MAX_WIDTH_DP));
-                            floatingParams.height = clamp(nextHeight, dp(FLOATING_MIN_HEIGHT_DP), dp(FLOATING_MAX_HEIGHT_DP));
-                            windowManager.updateViewLayout(floatingView, floatingParams);
+                            float widthScaleDelta = (event.getRawX() - touchStartX) / dp(FLOATING_DEFAULT_WIDTH_DP);
+                            float heightScaleDelta = (event.getRawY() - touchStartY) / dp(FLOATING_DEFAULT_HEIGHT_DP);
+                            // 横向或纵向都能缩放，以相对基准尺寸变化更明显的方向为准。
+                            float dominantScaleDelta = Math.abs(widthScaleDelta) >= Math.abs(heightScaleDelta)
+                                    ? widthScaleDelta : heightScaleDelta;
+                            applyFloatingScale(clamp(floatingResizeStartScale + dominantScaleDelta,
+                                    FLOATING_MIN_SCALE, FLOATING_MAX_SCALE));
+                            windowManager.updateViewLayout(floatingWindowView, floatingParams);
                             return true;
                         default:
                             return true;
@@ -300,11 +321,13 @@ public class FloatingControlService extends Service {
 
             updateState(false, false, AutoClickAccessibilityService.getLastMessage());
             updateModeViews();
-            windowManager.addView(floatingView, floatingParams);
+            constrainFloatingWindowToScreen();
+            windowManager.addView(floatingWindowView, floatingParams);
             AppLogger.i(this, "Floating control panel added");
         } catch (Throwable e) {
             AppLogger.e(this, "Failed to add floating control panel", e);
-            floatingView = null;
+            floatingWindowView = null;
+            floatingPanelView = null;
             Toast.makeText(this, "悬浮面板显示失败，请查看日志", Toast.LENGTH_LONG).show();
             stopSelf();
         }
@@ -315,23 +338,22 @@ public class FloatingControlService extends Service {
             statusCallback = new AutoClickAccessibilityService.StatusCallback() {
                 @Override
                 public void onStatusChanged(final boolean running, final boolean paused, final String message) {
-                    final View anchor = floatingView != null ? floatingView : profileBubbleView;
+                    final View anchor = floatingWindowView != null ? floatingWindowView : profileBubbleView;
                     if (anchor == null) {
                         return;
                     }
                     anchor.post(new Runnable() {
                         @Override
                         public void run() {
-                            if (floatingView != null) {
+                            if (floatingWindowView != null) {
                                 updateState(running, paused, message);
                             }
-                            if (running && profileBubbleView != null) {
-                                bringProfileBubbleToFront();
+                            if (profileBubbleView != null) {
+                                profileBubbleExecuting = running;
+                                updateProfileBubble(running);
                             }
                             if (!running) {
                                 removeExecutionPreview();
-                                profileBubbleExecuting = false;
-                                updateProfileBubble(false);
                             }
                         }
                     });
@@ -344,16 +366,13 @@ public class FloatingControlService extends Service {
                 @Override
                 public void onStepDispatch(final ClickStep step, final int startX, final int startY,
                                            final int endX, final int endY, final int stepIndex) {
-                    final View anchor = floatingView != null ? floatingView : profileBubbleView;
+                    final View anchor = floatingWindowView != null ? floatingWindowView : profileBubbleView;
                     if (anchor == null) {
                         return;
                     }
                     anchor.post(new Runnable() {
                         @Override
                         public void run() {
-                            if (profileBubbleView != null) {
-                                return;
-                            }
                             showCurrentExecutionPreview(step, startX, startY, endX, endY, stepIndex);
                         }
                     });
@@ -367,53 +386,47 @@ public class FloatingControlService extends Service {
         if (windowManager == null) {
             windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         }
-        removeOverlayView(floatingView);
-        floatingView = null;
+        removeOverlayView(floatingWindowView);
+        floatingWindowView = null;
+        floatingPanelView = null;
         removeProfileBubble();
         removeRecordingView();
         removeExecutionPreview();
         registerServiceCallbacks();
-        ClickProfile profile = loadSelectedProfile();
-        String name = profile == null ? "方案" : profile.getName();
-        profileBubbleView = new LinearLayout(this);
-        profileBubbleView.setOrientation(LinearLayout.HORIZONTAL);
-        profileBubbleView.setGravity(Gravity.CENTER);
-        profileBubbleView.setBackgroundResource(R.drawable.bg_profile_bubble_idle);
+        final ClickProfile profile = loadSelectedProfile();
+        final String name = profile == null ? "方案" : profile.getName();
+        profileBubbleView = new FrameLayout(this);
         profileBubbleView.setElevation(dp(8));
-        profileBubbleView.setPadding(dp(12), 0, dp(8), 0);
+        profileBubbleView.setClipChildren(false);
 
-        profileBubbleText = new TextView(this);
-        profileBubbleText.setText(buildBubbleText(false, name));
-        profileBubbleText.setTextColor(Color.WHITE);
-        profileBubbleText.setTextSize(13);
-        profileBubbleText.setGravity(Gravity.CENTER);
-        profileBubbleText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        profileBubbleView.addView(profileBubbleText, new LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                1
+        ImageView avatarView = new ImageView(this);
+        avatarView.setImageResource(R.mipmap.ic_launcher);
+        avatarView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        avatarView.setBackgroundResource(R.drawable.bg_profile_avatar);
+        avatarView.setClipToOutline(true);
+        profileBubbleView.addView(avatarView, new FrameLayout.LayoutParams(
+                dp(PROFILE_BUBBLE_SIZE_DP),
+                dp(PROFILE_BUBBLE_SIZE_DP),
+                Gravity.CENTER
         ));
 
-        TextView closeBubbleView = new TextView(this);
-        closeBubbleView.setText("×");
-        closeBubbleView.setTextColor(Color.WHITE);
-        closeBubbleView.setTextSize(18);
-        closeBubbleView.setGravity(Gravity.CENTER);
-        closeBubbleView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        closeBubbleView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                closeProfileBubbleControls();
-            }
-        });
-        profileBubbleView.addView(closeBubbleView, new LinearLayout.LayoutParams(
-                dp(28),
-                LinearLayout.LayoutParams.MATCH_PARENT
-        ));
+        profileBubbleBadge = new TextView(this);
+        profileBubbleBadge.setTextColor(Color.WHITE);
+        profileBubbleBadge.setTextSize(11);
+        profileBubbleBadge.setGravity(Gravity.CENTER);
+        profileBubbleBadge.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        profileBubbleBadge.setElevation(dp(10));
+        FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(
+                dp(PROFILE_BADGE_SIZE_DP),
+                dp(PROFILE_BADGE_SIZE_DP),
+                Gravity.END | Gravity.BOTTOM
+        );
+        profileBubbleView.addView(profileBubbleBadge, badgeParams);
+        updateProfileBubble(false);
 
         profileBubbleParams = new WindowManager.LayoutParams(
-                dp(142),
-                dp(48),
+                dp(PROFILE_BUBBLE_SIZE_DP),
+                dp(PROFILE_BUBBLE_SIZE_DP),
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
@@ -427,31 +440,51 @@ public class FloatingControlService extends Service {
             private int downWindowX;
             private int downWindowY;
             private boolean moved;
+            private boolean longPressTriggered;
 
             @Override
             public boolean onTouch(View view, MotionEvent event) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
+                        cancelProfileBubbleLongPress();
                         downRawX = event.getRawX();
                         downRawY = event.getRawY();
                         downWindowX = profileBubbleParams.x;
                         downWindowY = profileBubbleParams.y;
                         moved = false;
+                        longPressTriggered = false;
+                        profileBubbleLongPressRunnable = new Runnable() {
+                            @Override
+                            public void run() {
+                                longPressTriggered = true;
+                                closeProfileBubbleControls();
+                            }
+                        };
+                        profileBubbleHandler.postDelayed(profileBubbleLongPressRunnable, PROFILE_LONG_PRESS_MS);
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         int dx = (int) (event.getRawX() - downRawX);
                         int dy = (int) (event.getRawY() - downRawY);
-                        if (Math.abs(dx) > dp(4) || Math.abs(dy) > dp(4)) {
+                        if (Math.abs(dx) > dp(PROFILE_DRAG_THRESHOLD_DP)
+                                || Math.abs(dy) > dp(PROFILE_DRAG_THRESHOLD_DP)) {
                             moved = true;
+                            cancelProfileBubbleLongPress();
+                        }
+                        if (profileBubbleView == null || profileBubbleParams == null) {
+                            return true;
                         }
                         profileBubbleParams.x = downWindowX + dx;
                         profileBubbleParams.y = downWindowY + dy;
                         windowManager.updateViewLayout(profileBubbleView, profileBubbleParams);
                         return true;
                     case MotionEvent.ACTION_UP:
-                        if (!moved) {
+                        cancelProfileBubbleLongPress();
+                        if (!moved && !longPressTriggered) {
                             toggleProfileBubbleExecution();
                         }
+                        return true;
+                    case MotionEvent.ACTION_CANCEL:
+                        cancelProfileBubbleLongPress();
                         return true;
                     default:
                         return true;
@@ -467,28 +500,19 @@ public class FloatingControlService extends Service {
         }
     }
 
-    private String shortBubbleName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            return "方案";
-        }
-        String trimmed = name.trim();
-        return trimmed.length() > 4 ? trimmed.substring(0, 4) : trimmed;
-    }
-
-    private String buildBubbleText(boolean running, String name) {
-        return running ? "停止" : "启动 " + shortBubbleName(name);
-    }
-
     private void updateProfileBubble(boolean running) {
-        if (profileBubbleView == null || profileBubbleText == null) {
+        if (profileBubbleView == null || profileBubbleBadge == null) {
             return;
         }
         ClickProfile profile = loadSelectedProfile();
         String name = profile == null ? "方案" : profile.getName();
-        profileBubbleText.setText(buildBubbleText(running, name));
-        profileBubbleView.setBackgroundResource(running
-                ? R.drawable.bg_profile_bubble_running
-                : R.drawable.bg_profile_bubble_idle);
+        profileBubbleBadge.setText(running ? "■" : "▶");
+        profileBubbleBadge.setBackgroundResource(running
+                ? R.drawable.bg_profile_badge_running
+                : R.drawable.bg_profile_badge_idle);
+        profileBubbleView.setContentDescription(running
+                ? name + "正在执行，轻点停止，长按关闭"
+                : name + "，轻点启动，长按关闭");
     }
 
     private void closeProfileBubbleControls() {
@@ -522,16 +546,24 @@ public class FloatingControlService extends Service {
         }
         profileBubbleExecuting = true;
         updateProfileBubble(true);
-        bringProfileBubbleToFront();
         AppLogger.i(this, "Profile bubble started execution. steps=" + profile.getSteps().size());
     }
 
     private void removeProfileBubble() {
+        cancelProfileBubbleLongPress();
         removeOverlayView(profileBubbleView);
         profileBubbleView = null;
-        profileBubbleText = null;
+        profileBubbleBadge = null;
         profileBubbleParams = null;
         profileBubbleExecuting = false;
+    }
+
+    private void cancelProfileBubbleLongPress() {
+        if (profileBubbleLongPressRunnable == null) {
+            return;
+        }
+        profileBubbleHandler.removeCallbacks(profileBubbleLongPressRunnable);
+        profileBubbleLongPressRunnable = null;
     }
 
     private ClickProfile loadSelectedProfile() {
@@ -938,13 +970,13 @@ public class FloatingControlService extends Service {
     }
 
     private void bringFloatingPanelToFront() {
-        if (windowManager == null || floatingView == null || floatingParams == null) {
+        if (windowManager == null || floatingWindowView == null || floatingParams == null) {
             AppLogger.i(this, "bringFloatingPanelToFront skipped: missing view or params");
             return;
         }
-        removeOverlayView(floatingView);
+        removeOverlayView(floatingWindowView);
         try {
-            windowManager.addView(floatingView, floatingParams);
+            windowManager.addView(floatingWindowView, floatingParams);
             AppLogger.i(this, "Floating panel brought to front");
         } catch (RuntimeException e) {
             AppLogger.e(this, "Failed to bring floating panel to front", e);
@@ -957,7 +989,9 @@ public class FloatingControlService extends Service {
             AppLogger.i(this, "Execution preview skipped: missing window manager or step");
             return;
         }
-        executionPreviewView = new ExecutionPreviewView(this, step.isSwipe(), startX, startY, endX, endY, stepIndex);
+        final ExecutionPreviewView previewView =
+                new ExecutionPreviewView(this, step.isSwipe(), startX, startY, endX, endY, stepIndex);
+        executionPreviewView = previewView;
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -966,35 +1000,63 @@ public class FloatingControlService extends Service {
                 PixelFormat.TRANSLUCENT
         );
         params.gravity = Gravity.TOP | Gravity.START;
+        boolean previewAdded = false;
         try {
-            windowManager.addView(executionPreviewView, params);
-            if (executionPreviewView instanceof ExecutionPreviewView) {
-                ((ExecutionPreviewView) executionPreviewView).captureOverlayLocation();
-            }
+            previewView.setAlpha(0f);
+            previewView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+                @Override
+                public void onLayoutChange(View view, int left, int top, int right, int bottom,
+                                           int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                    previewView.removeOnLayoutChangeListener(this);
+                    if (executionPreviewView != previewView || !previewView.isAttachedToWindow()) {
+                        return;
+                    }
+                    // 手势坐标属于屏幕坐标；首次布局后才能取得包含系统栏偏移的悬浮层真实原点。
+                    previewView.captureOverlayLocation();
+                    previewView.setAlpha(1f);
+                    previewView.animate()
+                            .alpha(0f)
+                            .setStartDelay(EXECUTION_PREVIEW_HOLD_MS)
+                            .setDuration(EXECUTION_PREVIEW_FADE_MS)
+                            .withEndAction(new Runnable() {
+                                @Override
+                                public void run() {
+                                    removeExecutionPreview(previewView);
+                                }
+                            })
+                            .start();
+                }
+            });
+            windowManager.addView(previewView, params);
+            previewAdded = true;
             AppLogger.i(this, "Execution preview added. stepIndex=" + stepIndex);
-            bringProfileBubbleToFront();
         } catch (RuntimeException e) {
             AppLogger.e(this, "Failed to add execution preview", e);
-            executionPreviewView = null;
+            previewView.animate().cancel();
+            if (previewAdded) {
+                removeOverlayView(previewView);
+            }
+            if (executionPreviewView == previewView) {
+                executionPreviewView = null;
+            }
         }
     }
 
     private void removeExecutionPreview() {
-        removeOverlayView(executionPreviewView);
+        View previewView = executionPreviewView;
         executionPreviewView = null;
+        if (previewView != null) {
+            previewView.animate().cancel();
+            removeOverlayView(previewView);
+        }
     }
 
-    private void bringProfileBubbleToFront() {
-        if (windowManager == null || profileBubbleView == null || profileBubbleParams == null) {
+    private void removeExecutionPreview(View expectedView) {
+        if (executionPreviewView != expectedView) {
             return;
         }
-        removeOverlayView(profileBubbleView);
-        try {
-            windowManager.addView(profileBubbleView, profileBubbleParams);
-            AppLogger.i(this, "Profile bubble brought to front");
-        } catch (RuntimeException e) {
-            AppLogger.e(this, "Failed to bring profile bubble to front", e);
-        }
+        executionPreviewView = null;
+        removeOverlayView(expectedView);
     }
 
     private int[] toRecordingLocalPoint(int rawX, int rawY) {
@@ -1017,7 +1079,35 @@ public class FloatingControlService extends Service {
         }
     }
 
+    private void applyFloatingScale(float scale) {
+        if (floatingPanelView == null || floatingParams == null) {
+            return;
+        }
+        floatingScale = scale;
+        floatingPanelView.setScaleX(scale);
+        floatingPanelView.setScaleY(scale);
+        // 内层始终按 200x260dp 排版，外层窗口只跟随最终视觉尺寸，避免文字和间距二次布局。
+        floatingParams.width = Math.round(dp(FLOATING_DEFAULT_WIDTH_DP) * scale);
+        floatingParams.height = Math.round(dp(FLOATING_DEFAULT_HEIGHT_DP) * scale);
+        constrainFloatingWindowToScreen();
+    }
+
+    private void constrainFloatingWindowToScreen() {
+        if (floatingParams == null) {
+            return;
+        }
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        int maxX = Math.max(0, metrics.widthPixels - floatingParams.width);
+        int maxY = Math.max(0, metrics.heightPixels - floatingParams.height);
+        floatingParams.x = clamp(floatingParams.x, 0, maxX);
+        floatingParams.y = clamp(floatingParams.y, 0, maxY);
+    }
+
     private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
     }
 
@@ -1079,15 +1169,15 @@ public class FloatingControlService extends Service {
             this.endX = endX;
             this.endY = endY;
             this.stepIndex = Math.max(1, stepIndex);
-            linePaint.setColor(Color.argb(220, 37, 99, 235));
-            linePaint.setStrokeWidth(8f);
+            linePaint.setColor(Color.argb(120, 37, 99, 235));
+            linePaint.setStrokeWidth(6f);
             linePaint.setStyle(Paint.Style.STROKE);
-            markerPaint.setColor(Color.argb(235, 249, 115, 22));
+            markerPaint.setColor(Color.argb(135, 249, 115, 22));
             markerPaint.setStyle(Paint.Style.FILL);
-            markerStrokePaint.setColor(Color.WHITE);
-            markerStrokePaint.setStrokeWidth(4f);
+            markerStrokePaint.setColor(Color.argb(190, 255, 255, 255));
+            markerStrokePaint.setStrokeWidth(3f);
             markerStrokePaint.setStyle(Paint.Style.STROKE);
-            textPaint.setColor(Color.WHITE);
+            textPaint.setColor(Color.argb(220, 255, 255, 255));
             textPaint.setTextAlign(Paint.Align.CENTER);
             textPaint.setTextSize(32f);
             textPaint.setTypeface(Typeface.DEFAULT_BOLD);

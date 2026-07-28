@@ -116,7 +116,10 @@ public class AutoClickEngine {
                 completedLoops++;
                 if (running.get() && (profile.isInfiniteLoop() || completedLoops < profile.getLoopCount())) {
                     waitIfPaused();
-                    sleepInterruptibly(profile.getLoopIntervalMs());
+                    sleepInterruptibly(calculateLoopIntervalMs(
+                            profile.getLoopIntervalMs(),
+                            profile.getLoopIntervalRandomMs(),
+                            random));
                 }
             }
             running.set(false);
@@ -164,19 +167,42 @@ public class AutoClickEngine {
         if (safeRandom == 0L) {
             return safeBase;
         }
-        long offset = nextLongInclusive(safeRandom * 2L) - safeRandom;
+        long offset = nextLongInclusive(safeRandom * 2L, random) - safeRandom;
         return Math.max(minMs, safeBase + offset);
     }
 
-    private long nextLongInclusive(long boundInclusive) {
+    public static long calculateLoopIntervalMs(long baseMs, long randomMs, Random random) {
+        long safeBase = Math.max(0L, baseMs);
+        long safeRandom = Math.min(Math.max(0L, randomMs), Long.MAX_VALUE / 4L);
+        if (safeRandom == 0L) {
+            return safeBase;
+        }
+        if (random == null) {
+            throw new IllegalArgumentException("random 不能为空");
+        }
+
+        long offset = nextLongInclusive(safeRandom * 2L, random) - safeRandom;
+        if (offset > 0L && safeBase > Long.MAX_VALUE - offset) {
+            return Long.MAX_VALUE;
+        }
+        if (offset < 0L && safeBase < -offset) {
+            return 0L;
+        }
+        return safeBase + offset;
+    }
+
+    private static long nextLongInclusive(long boundInclusive, Random random) {
         if (boundInclusive <= 0L) {
             return 0L;
         }
-        long candidate;
+        long range = boundInclusive + 1L;
+        long bits;
+        long value;
         do {
-            candidate = random.nextLong() & Long.MAX_VALUE;
-        } while (candidate > Long.MAX_VALUE - ((Long.MAX_VALUE % (boundInclusive + 1L))));
-        return candidate % (boundInclusive + 1L);
+            bits = random.nextLong() & Long.MAX_VALUE;
+            value = bits % range;
+        } while (bits - value + (range - 1L) < 0L);
+        return value;
     }
 
     private long scaleDuration(long millis, double speedMultiplier) {

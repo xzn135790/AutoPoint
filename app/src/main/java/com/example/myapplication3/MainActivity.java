@@ -46,6 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView statusText;
     private EditText loopCountInput;
     private EditText loopIntervalInput;
+    private EditText loopIntervalRandomInput;
     private SwitchMaterial infiniteSwitch;
     private LinearLayout stepContainer;
     private boolean bindingSpinner;
@@ -89,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
         speedSpinner = findViewById(R.id.speedSpinner);
         loopCountInput = findViewById(R.id.loopCountInput);
         loopIntervalInput = findViewById(R.id.loopIntervalInput);
+        loopIntervalRandomInput = findViewById(R.id.loopIntervalRandomInput);
         infiniteSwitch = findViewById(R.id.infiniteSwitch);
         stepContainer = findViewById(R.id.stepContainer);
     }
@@ -187,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 saveCurrentProfileFromInputs();
-                Toast.makeText(MainActivity.this, "循环和倍速已保存", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "循环、间隔和倍速已保存", Toast.LENGTH_SHORT).show();
             }
         });
         infiniteSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> loopCountInput.setEnabled(!isChecked));
@@ -260,6 +262,7 @@ public class MainActivity extends AppCompatActivity {
         }
         loopCountInput.setText(String.valueOf(currentProfile.getLoopCount()));
         loopIntervalInput.setText(String.valueOf(currentProfile.getLoopIntervalMs()));
+        loopIntervalRandomInput.setText(String.valueOf(currentProfile.getLoopIntervalRandomMs()));
         infiniteSwitch.setChecked(currentProfile.isInfiniteLoop());
         loopCountInput.setEnabled(!currentProfile.isInfiniteLoop());
         bindSpeedSelection(currentProfile.getSpeedMultiplier());
@@ -373,6 +376,7 @@ public class MainActivity extends AppCompatActivity {
         }
         currentProfile.setLoopCount(parsePositiveInt(loopCountInput, 1));
         currentProfile.setLoopIntervalMs(parsePositiveLong(loopIntervalInput, 1000L));
+        currentProfile.setLoopIntervalRandomMs(parsePositiveLong(loopIntervalRandomInput, 0L));
         currentProfile.setInfiniteLoop(infiniteSwitch.isChecked());
         currentProfile.setSpeedMultiplier(parseSelectedSpeed());
         saveProfiles();

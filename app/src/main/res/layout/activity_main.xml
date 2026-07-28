@@ -293,6 +293,26 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
+                    android:text="间隔随机 ±（毫秒）"
+                    android:textColor="@color/app_text_secondary"
+                    android:textSize="13sp" />
+
+                <EditText
+                    android:id="@+id/loopIntervalRandomInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_input"
+                    android:hint="默认 0"
+                    android:inputType="number"
+                    android:maxLines="1"
+                    android:textColor="@color/app_text_primary"
+                    android:textColorHint="@color/app_text_secondary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
                     android:text="执行速度"
                     android:textColor="@color/app_text_secondary"
                     android:textSize="13sp" />
@@ -315,7 +335,7 @@
                     android:layout_height="44dp"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/bg_button_soft"
-                    android:text="保存循环和倍速"
+                    android:text="保存循环、间隔和倍速"
                     android:textColor="@color/app_primary"
                     app:backgroundTint="@null"
                     app:cornerRadius="14dp"

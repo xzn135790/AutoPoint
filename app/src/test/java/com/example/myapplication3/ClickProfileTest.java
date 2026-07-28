@@ -14,6 +14,7 @@ public class ClickProfileTest {
         ClickProfile profile = new ClickProfile("测试方案");
         profile.setLoopCount(3);
         profile.setInfiniteLoop(false);
+        profile.setLoopIntervalRandomMs(700L);
         profile.getSteps().clear();
         ClickStep timedStep = new ClickStep("a", ClickStep.TYPE_CLICK, 100, 200, 100, 200, 50, 80, 8);
         timedStep.setDelayRandomMs(10L);
@@ -25,6 +26,7 @@ public class ClickProfileTest {
 
         assertEquals("复制方案", copied.getName());
         assertEquals(3, copied.getLoopCount());
+        assertEquals(700L, copied.getLoopIntervalRandomMs());
         assertEquals(2, copied.getSteps().size());
         assertEquals(ClickStep.TYPE_CLICK, copied.getSteps().get(0).getType());
         assertTrue(copied.getSteps().get(1).isSwipe());
@@ -99,4 +101,18 @@ public class ClickProfileTest {
         profile.setLoopIntervalMs(2500L);
         assertEquals(2500L, profile.getLoopIntervalMs());
     }
+
+    @Test
+    public void loopIntervalRandomDefaultsToZeroAndClampsNegativeValues() {
+        ClickProfile profile = new ClickProfile("循环随机间隔");
+
+        assertEquals(0L, profile.getLoopIntervalRandomMs());
+
+        profile.setLoopIntervalRandomMs(-1L);
+        assertEquals(0L, profile.getLoopIntervalRandomMs());
+
+        profile.setLoopIntervalRandomMs(800L);
+        assertEquals(800L, profile.getLoopIntervalRandomMs());
+    }
+
 }
